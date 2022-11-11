@@ -2,11 +2,13 @@
 
 pthread_mutex_t clockLock;
 pthread_mutex_t threadLock;
+int numClocksReceived;
 int newClock;
 
 void berkeleySync(int port, int daemonPort, int numMachines, int* logicalClock) {
   if (isDaemon(port, daemonPort)) {
     newClock = *logicalClock;
+    numClocksReceived = 0;
     pthread_mutex_init(&clockLock, NULL);
     pthread_mutex_init(&threadLock, NULL)
 
@@ -49,8 +51,9 @@ void daemonInit(int daemonPort, int numMachines, int* logicalClock) {
       }
     }
 
-    // TODO
+    // AHHHHHHHHHHHHHHHHHHHH
     // wait until all threads have updated newClock
+    while (numClocksReceived != numMachines - 1) {}
     newClock /= numMachines;
 
     // update clock average and resume halted threads
@@ -116,16 +119,27 @@ void* daemonInteraction(void* arg) {
     exit(1);
   }
 
-  // need to do some funky semaphore/mutex stuff here
   int thisClock = atoi(buff);
+  bzero(buff, BUFF_SIZE);
 
   // acquire lock to update global running total
   pthread_mutex_lock(&clockLock);
   newClock += thisClock;
+  numClocksReceived++;
   pthread_mutex_unlock(&clockLock);
 
   // halt execution of this thread until all clocks have been received
+  pthread_mutex_lock(&threadLock);
+  pthread_mutex_unlock(&threadLock);
+
   // continue execution of this thread with the new average 
+  itoa(newClock, buff, 10);
+
+  ret = write(connfd, buff, BUFF_SIZE);
+  if (ret == -1) {
+    perror("Failed to \"ACK\" the non-daemon.\n");
+    exit(1);
+  }
 
   bzero(buff, BUFF_SIZE);
 
