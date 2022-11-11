@@ -3,8 +3,8 @@
 //int logicalClock;
 
 // arg structure:
-// 0     1    2          3
-// fname port daemonPort numMachines 
+// 0     1    2          3           4
+// fname port daemonPort numMachines randomSeed
 int main(int argc, char** argv) {
   // parse cmd line args
   int parsed[3];
@@ -19,8 +19,9 @@ int main(int argc, char** argv) {
 
   // use Berkeley algorithm to synchronize and take avg of clocks
   // time daemon selected upon program execution
+  printf("Randomly initialized clock value (Process #%d): %d\n", port - daemonPort, logicalClock);
   berkeleySync(port, daemonPort, numMachines, &logicalClock);
-  printf("CLOCK AFTER SYNC: %d\n", logicalClock);
+  printf("Synchronization process finished. New clock value (Process #%d): %d\n", port - daemonPort, logicalClock);
   
   // spawn two threads:
   // 1. sending multicast to other nodes using initPort

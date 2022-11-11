@@ -16,11 +16,8 @@ util/socks/socks.o:
 	gcc -pthread -g -c util/socks/socks.c
 	mv socks.o util/socks/.
 
-rund: compile 
-	./bin/machineMain 10000 10000 3
-
-runc: compile 
-	./bin/machineMain $(n) 10000 3
+run: compile 
+	python3 spinMachines.py $(n)
 
 clean:
 	rm bin/* machine/machine.o util/socks/socks.o util/berkeley/berkeley.o

@@ -56,6 +56,8 @@ void daemonInit(int daemonPort, int numMachines, int* logicalClock) {
     while (numClocksReceived != numMachines - 1) {}
     newClock /= numMachines;
 
+    *logicalClock = newClock;
+
     // update clock average and resume halted threads
     pthread_mutex_unlock(&threadLock);
 
@@ -64,7 +66,7 @@ void daemonInit(int daemonPort, int numMachines, int* logicalClock) {
       pthread_join(threads[i], NULL);
     }
 
-    printf("Daemon finished synchronization. New clock: %d\n", *logicalClock);
+    printf("Daemon finished synchronization.\n");
   }
 
   return;
@@ -150,7 +152,7 @@ void* daemonInteraction(void* arg) {
   }
 
   if (strncmp(buff, "BYE", 3) == 0) {
-    printf("Non-daemon disconnected.\n");
+    // printf("Non-daemon disconnected.\n");
   } else {
     perror("Received something other than \"BYE\" from non-daemon.\n");
     exit(1);

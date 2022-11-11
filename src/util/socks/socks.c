@@ -7,9 +7,9 @@ int acceptClient(int sockfd, struct sockaddr_in* serveradd) {
 
   // 0 success, else err
   if (connfd < 0) {
-    perror("Client connected, but something went wrong.\n");
+    perror("Connection happened, but something went wrong.\n");
     return -1;
-  } else { printf("Client connected.\n"); }
+  }
 
   return connfd;
 }
@@ -40,13 +40,13 @@ int makeRespSock(int port, int numClients, int* sockfd, struct sockaddr_in* serv
   if (bindRet != 0) {
     perror("Error binding socket.\n");
     return -1;
-  } else { printf("Successfully bound socket.\n"); }
+  }
 
   int listenRet = listen(*sockfd, numClients);
   if (listenRet != 0) {
     perror("Failed to listen.\n");
     return -1;
-  } else { printf("Listening on port %d.\n", port); }
+  }
 
   return 0;
 }
