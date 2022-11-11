@@ -1,25 +1,25 @@
 #include "machine.h"
 
-int logicalClock;
+//int logicalClock;
 
 // arg structure:
-// 0     1        2        3
-// fname respPort initPort numMachines 
+// 0     1    2          3
+// fname port daemonPort numMachines 
 int main(int argc, char** argv) {
   // parse cmd line args
   int parsed[3];
   getArgs(argc, argv, parsed);
-  int respPort = parsed[0];
-  int initPort = parsed[1];
+  int port = parsed[0];
+  int daemonPort = parsed[1];
   int numMachines = parsed[2];
 
   // randomly initialize logical clock
   srand(time(NULL));
-  logicalClock = rand() % CLOCK_RANDOM_CEILING;
+  int logicalClock = rand() % CLOCK_RANDOM_CEILING;
 
   // use Berkeley algorithm to synchronize and take avg of clocks
-  // how should I choose the time daemon? idfk lol
-  berkeleySync(respPort, initPort);
+  // time daemon selected upon program execution
+  berkeleySync(port, daemonPort, numMachines, &logicalClock);
   printf("CLOCK AFTER SYNC: %d\n", logicalClock);
   
   // spawn two threads:

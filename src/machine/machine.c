@@ -1,37 +1,18 @@
 #include "machine.h"
 
-// accept a new client on the socket
-int acceptClient(int sockfd, struct sockaddr_in* serveradd) {
-  int addrlen = sizeof(*serveradd);
-  int connfd = accept(sockfd, (struct sockaddr*)serveradd, (socklen_t*)&addrlen);
-
-  // 0 success, else err
-  if (connfd < 0) {
-    perror("Client connected, but something went wrong.\n");
-    return -1;
-  } else { printf("Client connected.\n"); }
-
-  return connfd;
-}
-
-void berkelySync(int respPort, int initPort) {
-
-  return;
-}
-
-// retrieve resp and init port numbers, along with the number of clients
+// retrieve all necessary port numbers, and the number of machines
 void getArgs(int argc, char** argv, int* writeTo) {
   if (!isEnoughArgs(argc)) { exit(1); }
 
-  // resp and init port number, respectively
+  // own, daemon port numbers respectively 
   int iArg1 = getPortNumber(argv[1]);
   int iArg2 = getPortNumber(argv[2]);
 
-  // num machines in the system
+  // number of machines in the system
   int iArg3 = atoi(argv[3]);
-  if (iArg3 <= 0) {
+  if (iArg3 != 0 && iArg3 != 1) {
     perror("Please enter a positive number of machines.\n");
-    exit(1); 
+    exit(1);
   }
 
   writeTo[0] = iArg1;
@@ -62,76 +43,7 @@ int isEnoughArgs(int argc) {
     return 1;
   }
 
-  perror("Please enter these args: <portNumber> <numClients>\n");
-  return 0;
-}
-
-// create a socket specifically for listening
-int makeRespSock(int port, int numClients, int* sockfd, struct sockaddr_in* serveradd) {
-  // required for sock definition
-  *sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-  // 0 err, >=0 success
-  if (*sockfd == 0) {
-    perror("Error instantiating socket.\n");
-    return -1;
-  }
-
-  // fill the structure with zeros
-  bzero(serveradd, sizeof(struct sockaddr_in));
-
-  // set up IP/Port
-  serveradd->sin_family = AF_INET;
-  serveradd->sin_addr.s_addr = htonl(INADDR_ANY); 
-  serveradd->sin_port = htons(port);
-
-  // bind info to socket
-  int bindRet = bind(*sockfd, (struct sockaddr*)serveradd, sizeof(struct sockaddr_in));
-
-  // 0 success, else err
-  if (bindRet != 0) {
-    perror("Error binding socket.\n");
-    return -1;
-  } else { printf("Successfully bound socket.\n"); }
-
-  int listenRet = listen(*sockfd, numClients);
-  if (listenRet != 0) {
-    perror("Failed to listen.\n");
-    return -1;
-  } else { printf("Listening on port %d.\n", port); }
-
-  return 0;
-}
-
-// create a socket specifically for sending
-int makeInitSock(int port, int* writeTo) {
-  int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-  // -1 err, >=0 success
-  if (sockfd == -1) {
-    perror("Error instantiating socket.\n");
-    return -1;
-  }
-
-  // create a structure and fill it with zeros
-  struct sockaddr_in serveradd;
-  bzero(&serveradd, sizeof(struct sockaddr_in));
-
-  // set up IP/Port
-  serveradd.sin_family = AF_INET;
-  serveradd.sin_addr.s_addr = htonl(INADDR_ANY);  // usually pass in an IP here
-  serveradd.sin_port = htons(port);
-
-  // connect to the server
-  int clifd = connect(sockfd, (struct sockaddr*)&serveradd, sizeof(struct sockaddr_in));
-  if (clifd < 0) {
-    perror("Failed to connect.\n");
-    return -1;
-  }
-  
-  writeTo[0] = sockfd;
-  writeTo[1] = clifd;
-
+  perror("Please enter these args: <portNumber> <daemonPortNumber> <numMachines>\n");
   return 0;
 }
 
