@@ -4,7 +4,6 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +12,7 @@
 #include <unistd.h>
 
 int acceptClient(int sockfd, struct sockaddr_in* serveradd);
-int makeInitSock(int port, int numClients, int* sockfd, struct sockaddr_in* serveradd);
-int makeRespSock(int port, int* writeTo);
+int makeRespSock(int port, int numClients, int* sockfd, struct sockaddr_in* serveradd);
+int makeInitSock(int port, int* writeTo);
 
 #endif

@@ -10,7 +10,7 @@ void berkeleySync(int port, int daemonPort, int numMachines, int* logicalClock) 
     newClock = *logicalClock;
     numClocksReceived = 0;
     pthread_mutex_init(&clockLock, NULL);
-    pthread_mutex_init(&threadLock, NULL)
+    pthread_mutex_init(&threadLock, NULL);
 
     daemonInit(daemonPort, numMachines, logicalClock);
 
@@ -133,7 +133,7 @@ void* daemonInteraction(void* arg) {
   pthread_mutex_unlock(&threadLock);
 
   // continue execution of this thread with the new average 
-  itoa(newClock, buff, 10);
+  itoa(newClock, buff);
 
   ret = write(connfd, buff, BUFF_SIZE);
   if (ret == -1) {
@@ -165,6 +165,31 @@ int isDaemon(int port, int daemonPort) {
   return port == daemonPort;
 }
 
+// convert string to int
+// dead stolen from https://stackoverflow.com/questions/190229/where-is-the-itoa-function-in-linux
+void itoa(int n, char* s) {
+  int i, sign;
+
+  if ((sign = n) < 0)  /* record sign */
+     n = -n;          /* make n positive */
+  i = 0;
+  do {       /* generate digits in reverse order */
+     s[i++] = n % 10 + '0';   /* get next digit */
+  } while ((n /= 10) > 0);     /* delete it */
+  if (sign < 0)
+     s[i++] = '-';
+  s[i] = '\0';
+
+  int k, j;
+  char c;
+
+  for (k = 0, j = strlen(s)-1; k<j; k++, j--) {
+    c = s[k];
+    s[k] = s[j];
+    s[j] = c;
+  }
+}
+
 // if the machine is not the time daemon, connect to it
 void normalInit(int daemonPort, int* logicalClock) {
   int writeTo[2];
@@ -172,7 +197,7 @@ void normalInit(int daemonPort, int* logicalClock) {
 
   if (ret == 0) {
     int sockfd = writeTo[0];
-    int clifd = writeTo[1]:
+    int clifd = writeTo[1];
     
     normalInteraction(sockfd, clifd, logicalClock);
     close(clifd);
@@ -211,7 +236,7 @@ int normalInteraction(int sockfd, int clifd, int* logicalClock) {
   bzero(buff, BUFF_SIZE);
 
   // convert the logicalClock of this process to a sendable format
-  itoa(*logicalClock, buff, 10);
+  itoa(*logicalClock, buff);
 
   // write the clock value over to the daemon
   ret = write(sockfd, buff, BUFF_SIZE);
@@ -226,7 +251,7 @@ int normalInteraction(int sockfd, int clifd, int* logicalClock) {
   ret = read(sockfd, buff, BUFF_SIZE);
   if (ret == -1) {
     perror("Failed to read new clock value from buffer.\n");
-    return -1
+    return -1;
   }
 
   // MAY NEED TO CONVERT IT TO (+/-)n INSTEAD OF RAW VALUE

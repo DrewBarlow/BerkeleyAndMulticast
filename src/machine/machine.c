@@ -10,8 +10,8 @@ void getArgs(int argc, char** argv, int* writeTo) {
 
   // number of machines in the system
   int iArg3 = atoi(argv[3]);
-  if (iArg3 != 0 && iArg3 != 1) {
-    perror("Please enter a positive number of machines.\n");
+  if (iArg3 < 3) {
+    perror("Please choose for there to be at least 3 machines.\n");
     exit(1);
   }
 
@@ -25,7 +25,7 @@ void getArgs(int argc, char** argv, int* writeTo) {
 // parses a port number from argc
 int getPortNumber(char* cArg) {
   int iArg = atoi(cArg);
-  if (iArg1 <= 0 || iArg1 > MAX_PORT_NUMBER) {
+  if (iArg <= 0 || iArg > MAX_PORT_NUMBER) {
     perror("Please enter a port number 1 <= num <= 65535.\n");
     exit(1); 
   }

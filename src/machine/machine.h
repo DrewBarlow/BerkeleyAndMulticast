@@ -8,19 +8,19 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include "../util/berkeley/berkeley.h"
 
 #define BUFF_SIZE 1024
 #define CLOCK_RANDOM_CEILING 783
 #define DEFAULT_LINE_SIZE 512
-#define NUM_EXPECTED_ARGS 5
+#define NUM_EXPECTED_ARGS 4
 #define MAX_PORT_NUMBER 65535
 
 // may not need to use this
 extern pthread_mutex_t lock;
-//extern int logicalClock;
 
 void getArgs(int argc, char** argv, int* writeTo);
-void getPortNumber(char* cArg);
+int getPortNumber(char* cArg);
 
 // may need more args
 void* interaction(void* arg);
