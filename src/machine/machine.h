@@ -25,6 +25,7 @@ extern pthread_mutex_t lock;
 extern int logicalClock;
 
 int acceptClient(int sockfd, struct sockaddr_in* serveradd);
+void berkelySync(int respPort, int initPort);
 void getArgs(int argc, char** argv, int* writeTo);
 void getPortNumber(char* cArg);
 

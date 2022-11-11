@@ -14,6 +14,11 @@ int acceptClient(int sockfd, struct sockaddr_in* serveradd) {
   return connfd;
 }
 
+void berkelySync(int respPort, int initPort) {
+
+  return;
+}
+
 // retrieve resp and init port numbers, along with the number of clients
 void getArgs(int argc, char** argv, int* writeTo) {
   if (!isEnoughArgs(argc)) { exit(1); }
