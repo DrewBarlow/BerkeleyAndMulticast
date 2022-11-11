@@ -24,6 +24,8 @@ def main() -> None:
         print("Please compile the main executable first.")
         return
 
+    print("NOTE: Processes will spin up once per second to take random seeding into account!\n")
+
     # spawn args.n processes
     processes: List[Process] = []
     for i in range(args.n):

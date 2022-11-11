@@ -19,9 +19,20 @@ int main(int argc, char** argv) {
 
   // use Berkeley algorithm to synchronize and take avg of clocks
   // time daemon selected upon program execution
-  printf("Randomly initialized clock value (Process #%d): %d\n", port - daemonPort, logicalClock);
+  if (port == daemonPort) {
+    printf("Randomly initialized clock value (Daemon): %d\n", logicalClock);
+  } else {
+    printf("Randomly initialized clock value (Machine #%d): %d\n", port - daemonPort, logicalClock);
+  }
+
   berkeleySync(port, daemonPort, numMachines, &logicalClock);
-  printf("Synchronization process finished. New clock value (Process #%d): %d\n", port - daemonPort, logicalClock);
+
+  if (port == daemonPort) {
+    printf("Synchronization process finished. New clock value (Daemon): %d\n", logicalClock);
+  } else {
+    printf("Synchronization process finished. New clock value (Machine #%d): %d\n", port - daemonPort, logicalClock);
+  }
+
   
   // spawn two threads:
   // 1. sending multicast to other nodes using initPort
