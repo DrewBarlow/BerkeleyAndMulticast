@@ -53,9 +53,9 @@ void daemonInit(int daemonPort, int numMachines, int* logicalClock) {
 
     // AHHHHHHHHHHHHHHHHHHHH
     // wait until all threads have updated newClock
-    while (numClocksReceived != numMachines - 1) {}
-    newClock /= numMachines;
+    do { /* fucking nothing */ } while (numClocksReceived != numMachines - 1);
 
+    newClock /= numMachines;
     *logicalClock = newClock;
 
     // update clock average and resume halted threads

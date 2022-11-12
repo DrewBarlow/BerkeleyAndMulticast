@@ -1,8 +1,16 @@
 # CMSC621 Project 2
 ## Drew Barlow (JU08810)
 
-### Requirements:
-### Note: Each process has a unique port number, I guess
+#### How to compile and run:
+  - `cd src/`
+  - `make compile`
+  - `make run n=<num-machines-to-spin>`
+  - NOTES:
+    - All of my code works under the assumption that leader election has already taken place.
+      - This variant of leader election works based on port number, where the LOWEST port wins.
+    - The time daemon is the elected leader (always port 10,000).
+    - Each "machine" port is `10,000 + i`, where `i` is `0..(n - 1)`.
+    - On startup, a machine is spawned once every second for `n` seconds (for random seeding).
 
 #### GOALS:
 - Start the system
@@ -11,12 +19,6 @@
 - Implement distributed locking scheme to prevent the nodes
     from editing a shared file at the same time.
   - Use centralized, decentralized, or distributed algorithm to do this
-
-1. Randomly initialize logical clock of individual processes and use
-   Berkeley's algorithm to synchronize them to the average clock
-  - Can select any process as the time daemon
-  - Assume logical clock represents number of messages sent and received by a machine
-2. Print out the logical clock to check the result of synchronization.
 
 3. Use two threads per process: one to send and one to receive.
   - Use vector clocks to enforce ordering
