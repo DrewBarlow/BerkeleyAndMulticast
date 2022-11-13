@@ -17,6 +17,7 @@ def main() -> None:
     parser: ArgumentParser = ArgumentParser()
     print("\nIF RUNNING FROM MAKEFILE, USE:\nmake run n=<num-machines-to-spawn>\n")
     parser.add_argument("n", type=int, help="Number of machines spin up.")
+    parser.add_argument("-c", action="store_true")
     args: Namespace = parser.parse_args()
 
     # check that the client file is compiled
@@ -24,13 +25,15 @@ def main() -> None:
         print("Please compile the main executable first.")
         return
 
+    causal: int = 1 if args.c else 0
+
     print("NOTE: Processes will spin up once per second to take random seeding into account!\n")
 
     # spawn args.n processes
     processes: List[Process] = []
     for i in range(args.n):
         sleep(1)
-        processes.append(Process(target=system, args=(f"{EXECUTABLE_PATH} {DAEMON_PORT + i} {DAEMON_PORT} {args.n}",)))
+        processes.append(Process(target=system, args=(f"{EXECUTABLE_PATH} {DAEMON_PORT + i} {DAEMON_PORT} {args.n} {causal}",)))
         processes[i].start()
 
     for process in processes:

@@ -1,5 +1,11 @@
 #include "machine.h"
 
+// deallocate initialized vector clock
+void destroyVectorClock(int* vectorClock) {
+  free(vectorClock);
+  return;
+}
+
 // retrieve all necessary port numbers, and the number of machines
 void getArgs(int argc, char** argv, int* writeTo) {
   if (!isEnoughArgs(argc)) { exit(1); }
@@ -15,9 +21,17 @@ void getArgs(int argc, char** argv, int* writeTo) {
     exit(1);
   }
 
+  // multicast is causal ({0,1})
+  int iArg4 = atoi(argv[4]);
+  if (iArg4 != 0 && iArg4 != 1) {
+    perror("Please denote whether or not messaging is causal.\n");
+    exit(1);
+  }
+
   writeTo[0] = iArg1;
   writeTo[1] = iArg2;
   writeTo[2] = iArg3;
+  writeTo[3] = iArg4;
 
   return;
 }
@@ -33,6 +47,28 @@ int getPortNumber(char* cArg) {
   return iArg;
 }
 
+// initialize multicast messages and buffers
+void initMulticastMessages(char messages[NUM_MULTICAST_MESSAGES][BUFF_SIZE]) {
+  for (int i = 0; i < NUM_MULTICAST_MESSAGES; i++) {
+    bzero(messages[i], BUFF_SIZE);
+  }
+
+  strncpy(messages[0], "Multicast Message #1: Hello!", 28);
+  strncpy(messages[1], "Multicast Message #2: Yoyoyoyo", 30);
+  strncpy(messages[2], "Multicast Message #3: Okay we're done", 37);
+
+  return;
+}
+
+// initialize vector clocks (ALLOCATES MEMORY THAT NEEDS TO BE FREED)
+void initVectorClock(int** vectorClock, int myId, int logicalClock, int numMachines) {
+  *vectorClock = calloc(numMachines, sizeof(int));
+  bzero(*vectorClock, numMachines);
+  (*vectorClock)[myId] = logicalClock;
+
+  return;
+}
+
 void* interaction(void* arg) {
   return NULL;
 }
@@ -43,7 +79,7 @@ int isEnoughArgs(int argc) {
     return 1;
   }
 
-  perror("Please enter these args: <portNumber> <daemonPortNumber> <numMachines>\n");
+  perror("Please enter these args: <portNumber> <daemonPortNumber> <numMachines> <isCausal>\n");
   return 0;
 }
 
