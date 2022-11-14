@@ -7,7 +7,7 @@ int* vectorClock;
 // fname port daemonPort numMachines isCausal 
 int main(int argc, char** argv) {
   // parse cmd line args
-  int parsed[3];
+  int parsed[4];
   getArgs(argc, argv, parsed);
   int port = parsed[0];
   int daemonPort = parsed[1];
@@ -35,16 +35,22 @@ int main(int argc, char** argv) {
     printf("Synchronization process finished. New clock value (Machine #%d): %d\n", myId, logicalClock);
   }
 
-  // init multicast messages and vector clock, then send them
-  char messages[NUM_MULTICAST_MESSAGES][BUFF_SIZE];
-  initMulticastMessages(messages);
-  initVectorClock(&vectorClock, myId, logicalClock, numMachines);
-
-  for (int i = 0; i < NUM_MULTICAST_MESSAGES; i++) {
-    multicast(messages[i], port, numMachines, vectorClock, isCausal);
+  if (isCausal) {
+    initVectorClock(&vectorClock, myId, logicalClock, numMachines);
+    joinCausalNetwork(port, numMachines, vectorClock);
+    destroyVectorClock(vectorClock);
+  } else {
+    joinNormalNetwork(port, numMachines);
   }
+
+  // init multicast messages and vector clock, then send them
+  // char messages[NUM_MULTICAST_MESSAGES][BUFF_SIZE];
+  // initMulticastMessages(messages);
+
+  // for (int i = 0; i < NUM_MULTICAST_MESSAGES; i++) {
+  //   multicast(messages[i], port, numMachines, vectorClock, isCausal);
+  // }
   
-  destroyVectorClock(vectorClock);
 
   return 0;
 }
