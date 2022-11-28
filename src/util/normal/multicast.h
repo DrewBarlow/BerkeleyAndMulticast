@@ -8,6 +8,7 @@
 #define MIN_PORT 10000
 
 typedef struct {
+  int srcId;
   int port;
   int numMachines;
   int sockfd;

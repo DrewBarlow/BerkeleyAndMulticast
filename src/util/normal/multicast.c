@@ -6,7 +6,7 @@ void* initInit(void* fargs) {
   args_cast_t args = *((args_cast_t*) fargs);
 
   // used for keeping track of socket fds and threads
-  pthread_t threads[args.numMachines];
+  pthread_t threads[args.numMachines - 1];
   int sockfds[args.numMachines];
   int clifds[args.numMachines];
   bzero(threads, args.numMachines);
@@ -19,11 +19,11 @@ void* initInit(void* fargs) {
 
   // make outgoing sockets for each machine on the network
   for (int i = 0; i < args.numMachines; i++) {
-    if (i == args.port - MIN_PORT) {
+    if (i == args.srcId) {
       sockfds[i] = -1;
       clifds[i] = -1;
     } else {
-      ret = makeInitSock(args.port, writeTo);
+      ret = makeInitSock(MIN_PORT + i, writeTo);
       if (ret != 0) {
         perror("Error occurred when making initiator socket.\n");
         exit(1);
@@ -35,15 +35,17 @@ void* initInit(void* fargs) {
   }
 
   // spawn threads for each socket 
+  int currThread = 0;
   for (int i = 0; i < args.numMachines; i++) {
     if (sockfds[i] != -1) {
       args_cast_t threadArgs;
+      threadArgs.srcId = args.srcId;
       threadArgs.port = MIN_PORT + i;
       threadArgs.numMachines = args.numMachines;
       threadArgs.sockfd = sockfds[i];
       threadArgs.vectorClock = args.vectorClock;
 
-      ret = pthread_create(&threads[i], NULL, initInteraction, (void*) &threadArgs);
+      ret = pthread_create(&threads[currThread++], NULL, initInteraction, (void*) &threadArgs);
       if (ret != 0) {
         perror("Error occurred when spawning initiator threads.\n");
         exit(1);
@@ -66,30 +68,47 @@ void* initInteraction(void* fargs) {
   bzero(sendBuff, BUFF_SIZE);
   bzero(recvBuff, BUFF_SIZE);
 
-  // recv an ACK from the server so we know when to send our clock
-  int ret = read(args.sockfd, recvBuff, BUFF_SIZE);
+  // send HELLO message
+  strncpy(sendBuff, "HELLO", 5);
+  int ret = write(args.sockfd, sendBuff, BUFF_SIZE);
   if (ret == -1) {
-    perror("Failed to receive an ACK.\n");
+    perror("Failed to greet server.\n");
     exit(1);
-  } else {
-    printf("Got server ACK MACHINE %d\n", args.port);
+  }
+  bzero(sendBuff, BUFF_SIZE);
+  
+  // receive the server's initial ACK
+  ret = read(args.sockfd, recvBuff, BUFF_SIZE);
+  if (ret == -1) {
+    perror("Failed to read server's initial ACK.\n");
+    exit(1);
   }
 
   // prepare multicast message
   char id[BUFF_SIZE];
   bzero(id, BUFF_SIZE);
-  itoa(args.port - MIN_PORT, id);
+  itoa(args.srcId, id);
   strncpy(sendBuff, "Msg from machine ", 17);
   strncat(sendBuff, id, 5);
 
   // acquire the clockLock mutex so the vectorClock
   // does not update in the middle of being sent
   pthread_mutex_lock(&vClockLock);
-  args.vectorClock[args.port - MIN_PORT]++;
+
+  // THIS IS BAD!
+  args.vectorClock[args.srcId]++;
   sendVectorClock(args.sockfd, args.numMachines, args.vectorClock);
-  ret = write(args.sockfd, sendBuff, BUFF_SIZE);
   pthread_mutex_unlock(&vClockLock);
-    
+
+  // read the server's ACK
+  ret = read(args.sockfd, recvBuff, BUFF_SIZE);
+  if (ret == -1) {
+    perror("Failed to read vector ACK from server.\n");
+    exit(1);
+  }
+
+  sleep(1);
+  ret = write(args.sockfd, sendBuff, BUFF_SIZE);
   if (ret == -1) {
     perror("Failed to multicast message.\n");
     exit(1);
@@ -106,6 +125,7 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
 
   // init the args in a struct, because void*
   args_cast_t args;
+  args.srcId = port - MIN_PORT;
   args.port = port;
   args.numMachines = numMachines;
   args.sockfd = -1;
@@ -118,7 +138,9 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
     exit(1);
   }
 
-  // sleeping for a second to simulate all threads joining the network
+  // simulate message staggering through sleeping for some random interval
+  // based on the initial logical clock generated
+  // sleep(vectorClock[args.srcId] % 10);
   sleep(1);
 
   // spawn the multicast threads after all listening threads
@@ -141,34 +163,21 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
 int* recvVectorClock(int sockfd, int numMachines) {
   // allocate enough memory for the vector clock we will receive
   int* newClock = calloc(numMachines, sizeof(int));
-
-  // prep buffers to send and recv from
   char recvBuff[BUFF_SIZE];
-  char sendBuff[BUFF_SIZE];
   bzero(recvBuff, BUFF_SIZE);
-  bzero(sendBuff, BUFF_SIZE);
-  strncpy(sendBuff, "ACK", 3);
 
-  int ret = 0;
-
-  // receive a message for each slot in the clock, convert to int
-  for (int i = 0; i < numMachines; i++) {
-    ret = read(sockfd, recvBuff, BUFF_SIZE);
-    if (ret == -1) {
-      perror("Failed to read vector clock from buffer.\n");
-      exit(1);
-    }
-
-    // ACK the sender to let them know they can send the next number
-    ret = write(sockfd, sendBuff, BUFF_SIZE);
-    if (ret == -1) {
-      perror("Failed to write vector clock ACK to buffer.\n");
-      exit(1);
-    }
-
-    newClock[i] = atoi(recvBuff);
-    bzero(recvBuff, BUFF_SIZE);
+  // read the vector clock from the buffer
+  int ret = read(sockfd, recvBuff, BUFF_SIZE);
+  if (ret == -1) {
+    perror("Failed to read vector clock from buffer.\n");
+    exit(1);
   }
+
+  // parse the received clock into tokens, then store them in newClock
+  char* rest = recvBuff;
+  char* tok;
+  int i = 0;
+  while (tok = strtok_r(rest, ",", &rest)) { newClock[i++] = atoi(tok); }
 
   return newClock;
 }
@@ -189,7 +198,7 @@ void* respInit(void* fargs) {
 
       if (connfd != -1) {
         args_cast_t threadArgs;
-        threadArgs.port = args.port;
+        threadArgs.srcId = args.srcId;
         threadArgs.numMachines = args.numMachines;
         threadArgs.sockfd = connfd;
         threadArgs.vectorClock = args.vectorClock;
@@ -228,21 +237,29 @@ void* respInteraction(void* fargs) {
   bzero(sendBuff, BUFF_SIZE);
   strncpy(sendBuff, "ACK", 3);
 
-  // send a message to let the client know this machine is ready to receive
-  // the vector clock
-  int ret = write(args.sockfd, sendBuff, BUFF_SIZE);
+  // read the client's HELLO
+  int ret = read(args.sockfd, recvBuff, BUFF_SIZE);
   if (ret == -1) {
-    perror("Failed to tell client to send vector clock.\n");
+    perror("Failed to read HELLO.\n");
+    exit(1);
+  }
+
+  // ACK the client's HELLO
+  ret = write(args.sockfd, sendBuff, BUFF_SIZE);
+  if (ret == -1) {
+    perror("Failed to ACK initial connection.\n");
     exit(1);
   }
 
   // receive the machine's vector clock 
   int* otherClock = recvVectorClock(args.sockfd, args.numMachines);
-  pthread_mutex_lock(&vClockLock);
 
-  // update this machine's vector clock
-  args.vectorClock[args.port - MIN_PORT]++;
-  updateVectorClock(args.vectorClock, otherClock, args.numMachines);
+  // ACK the vector clock
+  ret = write(args.sockfd, sendBuff, BUFF_SIZE);
+  if (ret == -1) {
+    perror("Failed to ACK the vector clock.\n");
+    exit(1);
+  }
 
   // receive the message
   ret = read(args.sockfd, recvBuff, BUFF_SIZE);
@@ -252,38 +269,39 @@ void* respInteraction(void* fargs) {
     exit(1);
   }
 
-  printf("Machine %d received a message:\n\t%s\n", (args.port - MIN_PORT), recvBuff);
+  printf("Machine %d received a message:\t\"%s\"\n", (args.srcId), recvBuff);
+  pthread_mutex_lock(&vClockLock);
 
+  // update this machine's vector clock
+  // THIS IS BAD I THINK
+  args.vectorClock[args.srcId]++;
+  updateVectorClock(args.vectorClock, otherClock, args.numMachines);
   pthread_mutex_unlock(&vClockLock);
+
   free(otherClock);
   return NULL;
 }
 
 void sendVectorClock(int connfd, int numMachines, int* vectorClock) {
   char sendBuff[BUFF_SIZE];
-  char recvBuff[BUFF_SIZE];
   bzero(sendBuff, BUFF_SIZE);
-  bzero(recvBuff, BUFF_SIZE);
-  int ret = 0;
 
-  // send each element of this machine's vector clock to
-  // the listening machine
+  // construct a string to send over to the other machine in one message
   for (int i = 0; i < numMachines; i++) {
-    itoa(vectorClock[i], sendBuff);
+    char appendMe[BUFF_SIZE];
+    bzero(appendMe, BUFF_SIZE);
 
-    ret = write(connfd, sendBuff, BUFF_SIZE);
-    if (ret == -1) {
-      perror("Failed to write vector clock to buffer.\n");
-      exit(1);
-    }
+    // send a token stream separated by commas
+    itoa(vectorClock[i], appendMe);
+    if (i != numMachines - 1) { strcat(appendMe, ","); }
+    strncat(sendBuff, appendMe, strlen(appendMe));
+  }
 
-    ret = read(connfd, recvBuff, BUFF_SIZE);
-    if (ret == -1) {
-      perror("Failed to read vector clock ACK from buffer.\n");
-      exit(1);
-    }
-
-    bzero(sendBuff, BUFF_SIZE);
+  // write the vector clock
+  int ret = write(connfd, sendBuff, BUFF_SIZE);
+  if (ret == -1) {
+    perror("Failed to write vector clock to buffer.\n");
+    exit(1);
   }
 
   return;

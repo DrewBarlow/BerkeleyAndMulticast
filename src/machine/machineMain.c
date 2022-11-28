@@ -15,7 +15,8 @@ int main(int argc, char** argv) {
 
   // randomly initialize logical clock
   srand(time(NULL));
-  int logicalClock = rand() % CLOCK_RANDOM_CEILING;
+  int logicalClockOrig = rand() % CLOCK_RANDOM_CEILING;
+  int logicalClock = logicalClockOrig;
 
   // use Berkeley algorithm to synchronize and take avg of clocks
   // time daemon selected upon program execution
@@ -37,7 +38,7 @@ int main(int argc, char** argv) {
 
   sleep(1);
   
-  initVectorClock(&vectorClock, myId, logicalClock, numMachines);
+  initVectorClock(&vectorClock, myId, logicalClockOrig, numMachines);
   joinNetwork(port, numMachines, vectorClock);
   destroyVectorClock(vectorClock);
 
