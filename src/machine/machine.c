@@ -21,17 +21,9 @@ void getArgs(int argc, char** argv, int* writeTo) {
     exit(1);
   }
 
-  // multicast is causal ({0,1})
-  int iArg4 = atoi(argv[4]);
-  if (iArg4 != 0 && iArg4 != 1) {
-    perror("Please denote whether or not messaging is causal.\n");
-    exit(1);
-  }
-
   writeTo[0] = iArg1;
   writeTo[1] = iArg2;
   writeTo[2] = iArg3;
-  writeTo[3] = iArg4;
 
   return;
 }
@@ -79,7 +71,7 @@ int isEnoughArgs(int argc) {
     return 1;
   }
 
-  perror("Please enter these args: <portNumber> <daemonPortNumber> <numMachines> <isCausal>\n");
+  perror("Please enter these args: <portNumber> <daemonPortNumber> <numMachines>\n");
   return 0;
 }
 

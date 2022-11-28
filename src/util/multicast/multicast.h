@@ -10,21 +10,18 @@
 typedef struct {
   int port;
   int numMachines;
+  int sockfd;
   int* vectorClock;
-} args_causal_t;
+} args_cast_t;
 
-typedef struct {
-  int port;
-  int numMachines;
-} args_normal_t;
+extern pthread_mutex_t clockLock;
 
-// need mutex I think
-
-void* initInteractionCausal(void* args);
-void* initInteractionNormal(void* args);
-void joinCausalNetwork(int port, int numMachines, int* vectorClock);
-void joinNormalNetwork(int port, int numMachines);
-void* respInteractionCausal(void* args);
-void* respInteractionNormal(void* args);
+void* initInteraction(void* args);
+void itoa(int n, char* s);
+void joinNetwork(int port, int numMachines, int* vectorClock);
+int* recvVectorClock(int sockfd, int numMachines);  // allocates memory
+void* respInteraction(void* args);
+void sendVectorClock(int connfd, int numMachines, int* vectorClock);
+void updateVectorClock(int* thisClock, int* thatClock, int numMachines);
 
 #endif
