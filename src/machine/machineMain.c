@@ -30,30 +30,16 @@ int main(int argc, char** argv) {
 
   if (myId == 0) {
     printf("Synchronization process finished. New clock value (Daemon): %d\n", logicalClock);
+    printf("\nWaiting for sockets to close...\n");
   } else {
     printf("Synchronization process finished. New clock value (Machine #%d): %d\n", myId, logicalClock);
   }
 
+  sleep(1);
+  
   initVectorClock(&vectorClock, myId, logicalClock, numMachines);
   joinNetwork(port, numMachines, vectorClock);
   destroyVectorClock(vectorClock);
-
-  // if (isCausal) {
-  //   initVectorClock(&vectorClock, myId, logicalClock, numMachines);
-  //   joinCausalNetwork(port, numMachines, vectorClock);
-  //   destroyVectorClock(vectorClock);
-  // } else {
-  //   joinNormalNetwork(port, numMachines);
-  // }
-
-  // init multicast messages and vector clock, then send them
-  // char messages[NUM_MULTICAST_MESSAGES][BUFF_SIZE];
-  // initMulticastMessages(messages);
-
-  // for (int i = 0; i < NUM_MULTICAST_MESSAGES; i++) {
-  //   multicast(messages[i], port, numMachines, vectorClock, isCausal);
-  // }
-  
 
   return 0;
 }

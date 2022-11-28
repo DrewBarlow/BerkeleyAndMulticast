@@ -66,6 +66,7 @@ void daemonInit(int daemonPort, int numMachines, int* logicalClock) {
       pthread_join(threads[i], NULL);
     }
 
+    close(sockfd);
     printf("Daemon finished synchronization.\n");
   }
 
@@ -167,31 +168,6 @@ int isDaemon(int port, int daemonPort) {
   return port == daemonPort;
 }
 
-// convert string to int
-// dead stolen from https://stackoverflow.com/questions/190229/where-is-the-itoa-function-in-linux
-void itoa(int n, char* s) {
-  int i, sign;
-
-  if ((sign = n) < 0)  /* record sign */
-     n = -n;          /* make n positive */
-  i = 0;
-  do {       /* generate digits in reverse order */
-     s[i++] = n % 10 + '0';   /* get next digit */
-  } while ((n /= 10) > 0);     /* delete it */
-  if (sign < 0)
-     s[i++] = '-';
-  s[i] = '\0';
-
-  int k, j;
-  char c;
-
-  for (k = 0, j = strlen(s)-1; k<j; k++, j--) {
-    c = s[k];
-    s[k] = s[j];
-    s[j] = c;
-  }
-}
-
 // if the machine is not the time daemon, connect to it
 void normalInit(int daemonPort, int* logicalClock) {
   int writeTo[2];
@@ -203,6 +179,7 @@ void normalInit(int daemonPort, int* logicalClock) {
     
     normalInteraction(sockfd, clifd, logicalClock);
     close(clifd);
+    close(sockfd);
   }
 
   return;
@@ -271,5 +248,30 @@ int normalInteraction(int sockfd, int clifd, int* logicalClock) {
   }
 
   return 0;
+}
+
+// convert string to int
+// dead stolen from https://stackoverflow.com/questions/190229/where-is-the-itoa-function-in-linux
+void itoa(int n, char* s) {
+  int i, sign;
+
+  if ((sign = n) < 0)  /* record sign */
+     n = -n;          /* make n positive */
+  i = 0;
+  do {       /* generate digits in reverse order */
+     s[i++] = n % 10 + '0';   /* get next digit */
+  } while ((n /= 10) > 0);     /* delete it */
+  if (sign < 0)
+     s[i++] = '-';
+  s[i] = '\0';
+
+  int k, j;
+  char c;
+
+  for (k = 0, j = strlen(s)-1; k<j; k++, j--) {
+    c = s[k];
+    s[k] = s[j];
+    s[j] = c;
+  }
 }
 

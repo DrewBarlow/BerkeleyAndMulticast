@@ -1,9 +1,9 @@
 #include "multicast.h"
 
-pthread_mutex_t clockLock;
+pthread_mutex_t vClockLock;
 
-void* initInit(void* args) {
-  args_cast_t args = *((args_cast_t*) args);
+void* initInit(void* fargs) {
+  args_cast_t args = *((args_cast_t*) fargs);
 
   // used for keeping track of socket fds and threads
   pthread_t threads[args.numMachines];
@@ -59,8 +59,8 @@ void* initInit(void* args) {
 }
 
 // sends over this machine's vectorClock and a message
-void* initInteraction(void* args) {
-  args_cast_t args = *((args_cast_t*) args);
+void* initInteraction(void* fargs) {
+  args_cast_t args = *((args_cast_t*) fargs);
   char sendBuff[BUFF_SIZE];
   bzero(sendBuff, BUFF_SIZE);
 
@@ -73,11 +73,11 @@ void* initInteraction(void* args) {
 
   // acquire the clockLock mutex so the vectorClock
   // does not update in the middle of being sent
-  pthread_mutex_lock(&clockLock);
+  pthread_mutex_lock(&vClockLock);
   args.vectorClock[args.port - MIN_PORT]++;
   sendVectorClock(args.sockfd, args.numMachines, args.vectorClock);
   int ret = write(args.sockfd, sendBuff, BUFF_SIZE);
-  pthread_mutex_unlock(&clockLock);
+  pthread_mutex_unlock(&vClockLock);
     
   if (ret == -1) {
     perror("Failed to multicast message.\n");
@@ -87,34 +87,9 @@ void* initInteraction(void* args) {
   return NULL;
 }
 
-// convert int to string 
-// dead stolen from https://stackoverflow.com/questions/190229/where-is-the-itoa-function-in-linux
-void itoa(int n, char* s) {
-  int i, sign;
-
-  if ((sign = n) < 0)  /* record sign */
-     n = -n;          /* make n positive */
-  i = 0;
-  do {       /* generate digits in reverse order */
-     s[i++] = n % 10 + '0';   /* get next digit */
-  } while ((n /= 10) > 0);     /* delete it */
-  if (sign < 0)
-     s[i++] = '-';
-  s[i] = '\0';
-
-  int k, j;
-  char c;
-
-  for (k = 0, j = strlen(s)-1; k<j; k++, j--) {
-    c = s[k];
-    s[k] = s[j];
-    s[j] = c;
-  }
-}
-
 void joinNetwork(int port, int numMachines, int* vectorClock) {
   // initialize the mutex for this machine's vector clock
-  pthread_mutex_init(&clockLock);
+  pthread_mutex_init(&vClockLock, NULL);
   pthread_t initThread;
   pthread_t respThread;
 
@@ -141,7 +116,7 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
   // join the threads to end communication
   pthread_join(initThread, NULL);
   pthread_join(respThread, NULL);
-  pthread_mutex_destroy(&clockLock);
+  pthread_mutex_destroy(&vClockLock);
 
   return;
 }
@@ -169,8 +144,8 @@ int* recvVectorClock(int sockfd, int numMachines) {
   return newClock;
 }
 
-void* respInit(void* args) {
-  args_cast_t args = *((args_cast_t*) args);
+void* respInit(void* fargs) {
+  args_cast_t args = *((args_cast_t*) fargs);
   int sockfd;
   struct sockaddr_in serverAddr;
   pthread_t threads[args.numMachines - 1];
@@ -180,7 +155,7 @@ void* respInit(void* args) {
     int currThread = 0;
 
     // spin numMachines - 1 threads (arbitrary for consistency)
-    while (currThread != numMachines - 1) {
+    while (currThread != args.numMachines - 1) {
       int connfd = acceptClient(sockfd, &serverAddr);
 
       if (connfd != -1) {
@@ -204,7 +179,7 @@ void* respInit(void* args) {
 
     // join the threads and finish execution
     for (int i = 0; i < args.numMachines - 1; i++) {
-      pthread_join(&threads[i], NULL);
+      pthread_join(threads[i], NULL);
     }
 
   } else {
@@ -216,31 +191,31 @@ void* respInit(void* args) {
 }
 
 // receives a machines vector clock and a message from it
-void* respInteraction(void* args) {
-  args_cast_t args = *((args_cast_t*) args);
+void* respInteraction(void* fargs) {
+  args_cast_t args = *((args_cast_t*) fargs);
   char recvBuff[BUFF_SIZE];
   bzero(recvBuff, BUFF_SIZE);
 
   // receive the machine's vector clock 
   int* otherClock = recvVectorClock(args.sockfd, args.numMachines);
-  pthread_mutex_lock(&clockLock);
+  pthread_mutex_lock(&vClockLock);
 
   // update this machine's vector clock
   args.vectorClock[args.port - MIN_PORT]++;
-  updateVectorClock(args.vectorClock, otherClock);
+  updateVectorClock(args.vectorClock, otherClock, args.numMachines);
 
   // receive the message
   int ret = read(args.sockfd, recvBuff, BUFF_SIZE);
   if (ret == -1) {
     perror("Failed to read multicast from buffer.\n");
-    pthread_mutex_unlock(&clockLock);
+    pthread_mutex_unlock(&vClockLock);
     exit(1);
   }
 
   printf("Machine %d received a message:\n\t%s\n", (args.port - MIN_PORT), recvBuff);
   printf("Received a message");
 
-  pthread_mutex_unlock(&clockLock);
+  pthread_mutex_unlock(&vClockLock);
   free(otherClock);
   return NULL;
 }

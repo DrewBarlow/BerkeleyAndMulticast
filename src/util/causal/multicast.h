@@ -14,13 +14,14 @@ typedef struct {
   int* vectorClock;
 } args_cast_t;
 
-extern pthread_mutex_t clockLock;
+extern pthread_mutex_t vClockLock;
 
-void* initInteraction(void* args);
-void itoa(int n, char* s);
+void* initInit(void *fargs);
+void* initInteraction(void* fargs);
 void joinNetwork(int port, int numMachines, int* vectorClock);
 int* recvVectorClock(int sockfd, int numMachines);  // allocates memory
-void* respInteraction(void* args);
+void* respInit(void *fargs);
+void* respInteraction(void* fargs);
 void sendVectorClock(int connfd, int numMachines, int* vectorClock);
 void updateVectorClock(int* thisClock, int* thatClock, int numMachines);
 

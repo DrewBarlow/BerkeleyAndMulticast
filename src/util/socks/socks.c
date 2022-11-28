@@ -19,10 +19,17 @@ int makeRespSock(int port, int numClients, int* sockfd, struct sockaddr_in* serv
   // required for sock definition
   *sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
-  // 0 err, >=0 success
-  if (*sockfd == 0) {
-    perror("Error instantiating socket.\n");
-    return -1;
+  // >= 0 success, else err
+  if (*sockfd < 0) {
+    perror("Error instantiating resp socket.\n");
+    exit(1);
+  }
+
+  // make the socket reusable to reduce headaches
+  const int one = 1;
+  if (setsockopt(*sockfd, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(int)) < 0) {
+    perror("Error setting socket to be reusable.\n");
+    exit(1);
   }
 
   // fill the structure with zeros
@@ -39,13 +46,13 @@ int makeRespSock(int port, int numClients, int* sockfd, struct sockaddr_in* serv
   // 0 success, else err
   if (bindRet != 0) {
     perror("Error binding socket.\n");
-    return -1;
+    exit(1);
   }
 
   int listenRet = listen(*sockfd, numClients);
   if (listenRet != 0) {
     perror("Failed to listen.\n");
-    return -1;
+    exit(1);
   }
 
   return 0;
@@ -56,9 +63,9 @@ int makeInitSock(int port, int* writeTo) {
   int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
   // -1 err, >=0 success
-  if (sockfd == -1) {
-    perror("Error instantiating socket.\n");
-    return -1;
+  if (sockfd < 0) {
+    perror("Error instantiating init socket.\n");
+    exit(1);
   }
 
   // create a structure and fill it with zeros
