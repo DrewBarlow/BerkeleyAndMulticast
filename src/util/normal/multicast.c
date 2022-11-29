@@ -36,16 +36,18 @@ void* initInit(void* fargs) {
 
   // spawn threads for each socket 
   int currThread = 0;
+  args_cast_t* argsArr[args.numMachines - 1];
   for (int i = 0; i < args.numMachines; i++) {
     if (sockfds[i] != -1) {
-      args_cast_t threadArgs;
-      threadArgs.srcId = args.srcId;
-      threadArgs.port = MIN_PORT + i;
-      threadArgs.numMachines = args.numMachines;
-      threadArgs.sockfd = sockfds[i];
-      threadArgs.vectorClock = args.vectorClock;
+      args_cast_t* threadArgs = malloc(sizeof(args_cast_t));
+      threadArgs->srcId = args.srcId;
+      threadArgs->port = MIN_PORT + i;
+      threadArgs->numMachines = args.numMachines;
+      threadArgs->sockfd = sockfds[i];
+      threadArgs->vectorClock = args.vectorClock;
+      argsArr[currThread] = threadArgs;
 
-      ret = pthread_create(&threads[currThread++], NULL, initInteraction, (void*) &threadArgs);
+      ret = pthread_create(&threads[currThread++], NULL, initInteraction, (void*) threadArgs);
       if (ret != 0) {
         perror("Error occurred when spawning initiator threads.\n");
         exit(1);
@@ -55,6 +57,7 @@ void* initInit(void* fargs) {
 
   for (int i = 0; i < args.numMachines - 1; i++) {
     pthread_join(threads[i], NULL);
+    free(argsArr[i]);  // maybe problematic
   }
 
   return NULL;
@@ -67,20 +70,21 @@ void* initInteraction(void* fargs) {
   char recvBuff[BUFF_SIZE];
   bzero(sendBuff, BUFF_SIZE);
   bzero(recvBuff, BUFF_SIZE);
-
-  // send HELLO message
   strncpy(sendBuff, "HELLO", 5);
+
+  // send HELLO
   int ret = write(args.sockfd, sendBuff, BUFF_SIZE);
   if (ret == -1) {
-    perror("Failed to greet server.\n");
+    perror("Failed to send HELLO.\n");
     exit(1);
   }
-  bzero(sendBuff, BUFF_SIZE);
   
-  // receive the server's initial ACK
+  bzero(sendBuff, BUFF_SIZE);
+
+  // read initial ACK
   ret = read(args.sockfd, recvBuff, BUFF_SIZE);
   if (ret == -1) {
-    perror("Failed to read server's initial ACK.\n");
+    perror("Failed to read initial ACK.\n");
     exit(1);
   }
 
@@ -93,21 +97,21 @@ void* initInteraction(void* fargs) {
 
   // acquire the clockLock mutex so the vectorClock
   // does not update in the middle of being sent
-  pthread_mutex_lock(&vClockLock);
+  // pthread_mutex_lock(&vClockLock);
 
   // THIS IS BAD!
   args.vectorClock[args.srcId]++;
   sendVectorClock(args.sockfd, args.numMachines, args.vectorClock);
-  pthread_mutex_unlock(&vClockLock);
+  // pthread_mutex_unlock(&vClockLock);
 
-  // read the server's ACK
+  // read the vector clock ACK
   ret = read(args.sockfd, recvBuff, BUFF_SIZE);
   if (ret == -1) {
-    perror("Failed to read vector ACK from server.\n");
+    perror("Failed to read vector clock ACK.\n");
     exit(1);
   }
 
-  sleep(1);
+  // send the multicast
   ret = write(args.sockfd, sendBuff, BUFF_SIZE);
   if (ret == -1) {
     perror("Failed to multicast message.\n");
@@ -124,15 +128,15 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
   pthread_t respThread;
 
   // init the args in a struct, because void*
-  args_cast_t args;
-  args.srcId = port - MIN_PORT;
-  args.port = port;
-  args.numMachines = numMachines;
-  args.sockfd = -1;
-  args.vectorClock = vectorClock;
+  args_cast_t* args = malloc(sizeof(args_cast_t));
+  args->srcId = port - MIN_PORT;
+  args->port = port;
+  args->numMachines = numMachines;
+  args->sockfd = -1;
+  args->vectorClock = vectorClock;
 
   // spawn the listening threads first (obviously)
-  int threadRet = pthread_create(&respThread, NULL, respInit, (void*) &args);
+  int threadRet = pthread_create(&respThread, NULL, respInit, (void*) args);
   if (threadRet != 0) {
     perror("Failed to spawn normal resp thread.\n");
     exit(1);
@@ -140,12 +144,11 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
 
   // simulate message staggering through sleeping for some random interval
   // based on the initial logical clock generated
-  // sleep(vectorClock[args.srcId] % 10);
-  sleep(1);
+  sleep(vectorClock[args->srcId] % 10);
 
   // spawn the multicast threads after all listening threads
   // are established
-  threadRet = pthread_create(&initThread, NULL, initInit, (void*) &args);
+  threadRet = pthread_create(&initThread, NULL, initInit, (void*) args);
   if (threadRet != 0) {
     perror("Failed to spawn normal init thread.\n");
     exit(1);
@@ -156,6 +159,7 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
   pthread_join(respThread, NULL);
   pthread_mutex_destroy(&vClockLock);
 
+  free(args);
   return;
 }
 
@@ -191,20 +195,21 @@ void* respInit(void* fargs) {
   // create the listening socket
   if (makeRespSock(args.port, args.numMachines - 1, &sockfd, &serverAddr) != -1) {
     int currThread = 0;
+    args_cast_t* threadArgs;
 
     // spin numMachines - 1 threads (arbitrary for consistency)
-    while (currThread != args.numMachines - 1) {
+    while (/*currThread != args.numMachines - 1*/ 1) {
       int connfd = acceptClient(sockfd, &serverAddr);
 
       if (connfd != -1) {
-        args_cast_t threadArgs;
-        threadArgs.srcId = args.srcId;
-        threadArgs.numMachines = args.numMachines;
-        threadArgs.sockfd = connfd;
-        threadArgs.vectorClock = args.vectorClock;
+        threadArgs = malloc(sizeof(args_cast_t));
+        threadArgs->srcId = args.srcId;
+        threadArgs->numMachines = args.numMachines;
+        threadArgs->sockfd = connfd;
+        threadArgs->vectorClock = args.vectorClock;
 
         // spawn a thread to receive the vector clock and message
-        int threadRet = pthread_create(&threads[currThread++], NULL, respInteraction, (void*) &threadArgs);
+        int threadRet = pthread_create(&threads[currThread++], NULL, respInteraction, (void*) threadArgs);
         if (threadRet != 0) {
           perror("Error spawning a responder thread.\n");
           exit(1);
@@ -220,6 +225,7 @@ void* respInit(void* fargs) {
       pthread_join(threads[i], NULL);
     }
 
+    free(threadArgs);
   } else {
     perror("Error creating listening socket.\n");
     exit(1);
@@ -237,17 +243,17 @@ void* respInteraction(void* fargs) {
   bzero(sendBuff, BUFF_SIZE);
   strncpy(sendBuff, "ACK", 3);
 
-  // read the client's HELLO
+  // recv HELLO
   int ret = read(args.sockfd, recvBuff, BUFF_SIZE);
   if (ret == -1) {
     perror("Failed to read HELLO.\n");
     exit(1);
   }
 
-  // ACK the client's HELLO
+  // send ACK
   ret = write(args.sockfd, sendBuff, BUFF_SIZE);
   if (ret == -1) {
-    perror("Failed to ACK initial connection.\n");
+    perror("Failed to send initial ACK.\n");
     exit(1);
   }
 
@@ -265,18 +271,17 @@ void* respInteraction(void* fargs) {
   ret = read(args.sockfd, recvBuff, BUFF_SIZE);
   if (ret == -1) {
     perror("Failed to read multicast from buffer.\n");
-    pthread_mutex_unlock(&vClockLock);
     exit(1);
   }
 
   printf("Machine %d received a message:\t\"%s\"\n", (args.srcId), recvBuff);
-  pthread_mutex_lock(&vClockLock);
+  // pthread_mutex_lock(&vClockLock);
 
   // update this machine's vector clock
   // THIS IS BAD I THINK
   args.vectorClock[args.srcId]++;
   updateVectorClock(args.vectorClock, otherClock, args.numMachines);
-  pthread_mutex_unlock(&vClockLock);
+  // pthread_mutex_unlock(&vClockLock);
 
   free(otherClock);
   return NULL;
