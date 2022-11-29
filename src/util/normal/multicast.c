@@ -97,12 +97,12 @@ void* initInteraction(void* fargs) {
 
   // acquire the clockLock mutex so the vectorClock
   // does not update in the middle of being sent
-  // pthread_mutex_lock(&vClockLock);
+  pthread_mutex_lock(&vClockLock);
 
   // THIS IS BAD!
   args.vectorClock[args.srcId]++;
   sendVectorClock(args.sockfd, args.numMachines, args.vectorClock);
-  // pthread_mutex_unlock(&vClockLock);
+  pthread_mutex_unlock(&vClockLock);
 
   // read the vector clock ACK
   ret = read(args.sockfd, recvBuff, BUFF_SIZE);
@@ -144,7 +144,7 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
 
   // simulate message staggering through sleeping for some random interval
   // based on the initial logical clock generated
-  sleep(vectorClock[args->srcId] % 10);
+  sleep(vectorClock[args->srcId] % 5);
 
   // spawn the multicast threads after all listening threads
   // are established
@@ -160,6 +160,31 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
   pthread_mutex_destroy(&vClockLock);
 
   free(args);
+  return;
+}
+
+// prints out the vector clock for this machine
+void printVectorClock(int srcId, int* vectorClock, int numMachines) {
+  char clockStr[BUFF_SIZE];
+  char num[BUFF_SIZE];
+  bzero(clockStr, BUFF_SIZE);
+  bzero(num, BUFF_SIZE);
+
+  // put the clock in a string before printing because multithreading
+  strncpy(clockStr, "Machine ", 8);
+  itoa(srcId, num);
+  strncat(clockStr, num, strlen(num));
+  strncat(clockStr, "'s clock: ", 10);
+
+  for (int i = 0; i < numMachines; i++) {
+    bzero(num, BUFF_SIZE);
+    itoa(vectorClock[i], num);
+    strncat(clockStr, num, strlen(num));
+    if (i != numMachines - 1) { strcat(clockStr, ","); }
+  }
+
+
+  printf("%s\n", clockStr);
   return;
 }
 
@@ -198,7 +223,7 @@ void* respInit(void* fargs) {
     args_cast_t* threadArgs;
 
     // spin numMachines - 1 threads (arbitrary for consistency)
-    while (/*currThread != args.numMachines - 1*/ 1) {
+    while (currThread != args.numMachines - 1) {
       int connfd = acceptClient(sockfd, &serverAddr);
 
       if (connfd != -1) {
@@ -275,13 +300,14 @@ void* respInteraction(void* fargs) {
   }
 
   printf("Machine %d received a message:\t\"%s\"\n", (args.srcId), recvBuff);
-  // pthread_mutex_lock(&vClockLock);
+  pthread_mutex_lock(&vClockLock);
 
   // update this machine's vector clock
   // THIS IS BAD I THINK
   args.vectorClock[args.srcId]++;
   updateVectorClock(args.vectorClock, otherClock, args.numMachines);
-  // pthread_mutex_unlock(&vClockLock);
+  printVectorClock(args.srcId, args.vectorClock, args.numMachines);
+  pthread_mutex_unlock(&vClockLock);
 
   free(otherClock);
   return NULL;
