@@ -2,6 +2,24 @@
 
 pthread_mutex_t vClockLock;
 
+int causalityReport(int* thisClock, int* thatClock, int numMachines) {
+  // TODO: PARSE FOR SENDING MACHINE ID
+  int sendId = 0;
+
+  // BELOW IS MAYBE NOT TRUE ANYMORE
+  // have already incremented this vector clock. no need to check for +1
+  // M[j] = P_i[j] + 1
+  if (thisClock[sendId] + 1 != thatClock[sendId]) { return 0; }
+
+  // for all k != j: M[k] <= P_i[k]
+  for (int i = 0; i < numMachines; i++) {
+    if (i == sendId) { continue; }
+    if (thisClock[i] > thatClock[i]) { return 0; }
+  }
+
+  return 1;
+}
+
 void* initInit(void* fargs) {
   args_cast_t args = *((args_cast_t*) fargs);
 
@@ -116,7 +134,7 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
 
   // simulate message staggering through sleeping for some random interval
   // based on the initial logical clock generated
-  sleep(vectorClock[args->srcId] % 5);
+  sleep(vectorClock[args->srcId] % 10);
 
   // spawn the multicast threads after all listening threads
   // are established
@@ -247,14 +265,21 @@ void* respInteraction(void* fargs) {
     exit(1);
   }
 
-  printf("Machine %d received a message:\t\"%s\"\n", (args.srcId), recvBuff);
-  pthread_mutex_lock(&vClockLock);
+  // pthread_mutex_lock(&vClockLock);
 
   // update this machine's vector clock
+  // MAYBE DO NOT DO THIS
   args.vectorClock[args.srcId]++;
+  ret = causalityReport(args.vectorClock, otherClock, args.numMachines);
+  if (ret) {
+    printf("Machine %d received a message:\t\"%s\" (delivered)\n", (args.srcId), recvBuff);
+  } else {
+    printf("Machine %d received a message:\t\"%s\" (buffered)\n", (args.srcId), recvBuff);
+  }
+
   updateVectorClock(args.vectorClock, otherClock, args.numMachines);
   printVectorClock(args.srcId, args.vectorClock, args.numMachines);
-  pthread_mutex_unlock(&vClockLock);
+  // pthread_mutex_unlock(&vClockLock);
 
   free(otherClock);
   return NULL;
@@ -286,6 +311,7 @@ void sendVectorClock(int connfd, int numMachines, int* vectorClock) {
   return;
 }
 
+// sees if the received clock satisfies causality
 // takes the element-wise max for each element in the clock
 void updateVectorClock(int* thisClock, int* thatClock, int numMachines) {
   int max(int a, int b) { return (a > b) ? a : b; }

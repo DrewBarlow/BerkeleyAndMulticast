@@ -116,7 +116,7 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
 
   // simulate message staggering through sleeping for some random interval
   // based on the initial logical clock generated
-  sleep(vectorClock[args->srcId] % 5);
+  sleep(vectorClock[args->srcId] % 10);
 
   // spawn the multicast threads after all listening threads
   // are established
