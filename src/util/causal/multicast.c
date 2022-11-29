@@ -2,9 +2,19 @@
 
 pthread_mutex_t vClockLock;
 
-int causalityReport(int* thisClock, int* thatClock, int numMachines) {
-  // TODO: PARSE FOR SENDING MACHINE ID
-  int sendId = 0;
+// returns 1 if causality is satisfied between two clocks, else 0
+int causalityReport(int* thisClock, char* buff, int* thatClock, int numMachines) {
+  // make a copy of the buffer to not modify it
+  char cpy[BUFF_SIZE];
+  strncpy(cpy, buff, BUFF_SIZE);
+
+  // grab the last token of the message (sending machine ID)
+  char* last;
+  char* tok = strtok(cpy, " ");
+  while (tok = strtok(NULL, " ")) { last = tok; }
+ 
+  // use the sending machine ID as the idx
+  int sendId = atoi(last);
 
   // BELOW IS MAYBE NOT TRUE ANYMORE
   // have already incremented this vector clock. no need to check for +1
@@ -97,7 +107,7 @@ void* initInteraction(void* fargs) {
   // acquire the clockLock mutex so the vectorClock
   // does not update in the middle of being sent
   pthread_mutex_lock(&vClockLock);
-  args.vectorClock[args.srcId]++;
+  // args.vectorClock[args.srcId]++;
   sendVectorClock(args.sockfd, args.numMachines, args.vectorClock);
   pthread_mutex_unlock(&vClockLock);
 
@@ -265,12 +275,12 @@ void* respInteraction(void* fargs) {
     exit(1);
   }
 
-  // pthread_mutex_lock(&vClockLock);
+  pthread_mutex_lock(&vClockLock);
 
   // update this machine's vector clock
   // MAYBE DO NOT DO THIS
-  args.vectorClock[args.srcId]++;
-  ret = causalityReport(args.vectorClock, otherClock, args.numMachines);
+  // args.vectorClock[args.srcId]++;
+  ret = causalityReport(args.vectorClock, recvBuff, otherClock, args.numMachines);
   if (ret) {
     printf("Machine %d received a message:\t\"%s\" (delivered)\n", (args.srcId), recvBuff);
   } else {
@@ -279,7 +289,7 @@ void* respInteraction(void* fargs) {
 
   updateVectorClock(args.vectorClock, otherClock, args.numMachines);
   printVectorClock(args.srcId, args.vectorClock, args.numMachines);
-  // pthread_mutex_unlock(&vClockLock);
+  pthread_mutex_unlock(&vClockLock);
 
   free(otherClock);
   return NULL;
