@@ -29,7 +29,7 @@ extern int* vectorClock;
 void destroyVectorClock(int* vectorClock);
 void getArgs(int argc, char** argv, int* writeTo);
 int getPortNumber(char* cArg);
-void initVectorClock(int** vectorClock, int myId, int logicalClock, int numMachines);
+void initVectorClock(int** vectorClock, int myId, int numMachines);
 int isEnoughArgs(int argc);
 void printBuff(char* buff, int size);
 

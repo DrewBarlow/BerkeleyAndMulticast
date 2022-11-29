@@ -31,14 +31,16 @@ int main(int argc, char** argv) {
 
   if (myId == 0) {
     printf("Synchronization process finished. New clock value (Daemon): %d\n", logicalClock);
-    printf("\nWaiting for sockets to close...\n");
+    printf("\n~~~ MULTICAST STUFF ~~~\n");
   } else {
     printf("Synchronization process finished. New clock value (Machine #%d): %d\n", myId, logicalClock);
   }
 
-  sleep(2);
+  sleep(1);
   
-  initVectorClock(&vectorClock, myId, logicalClockOrig, numMachines);
+  // initialize the vector clock for this machine, then run 
+  // a multicast protocol
+  initVectorClock(&vectorClock, myId, numMachines);
   joinNetwork(port, numMachines, vectorClock);
   destroyVectorClock(vectorClock);
 

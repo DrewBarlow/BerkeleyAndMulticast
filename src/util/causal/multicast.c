@@ -3,7 +3,7 @@
 pthread_mutex_t vClockLock;
 
 // returns 1 if causality is satisfied between two clocks, else 0
-int causalityReport(int* thisClock, char* buff, int* thatClock, int numMachines) {
+int causalityReport(int* thisClock, int* thatClock, char* buff, int srcId, int numMachines) {
   // make a copy of the buffer to not modify it
   char cpy[BUFF_SIZE];
   strncpy(cpy, buff, BUFF_SIZE);
@@ -15,19 +15,19 @@ int causalityReport(int* thisClock, char* buff, int* thatClock, int numMachines)
  
   // use the sending machine ID as the idx
   int sendId = atoi(last);
+  int isCausal = 1;
 
-  // BELOW IS MAYBE NOT TRUE ANYMORE
-  // have already incremented this vector clock. no need to check for +1
   // M[j] = P_i[j] + 1
-  if (thisClock[sendId] + 1 != thatClock[sendId]) { return 0; }
+  if (thisClock[sendId] + 1 != thatClock[sendId]) { isCausal = 0; }
 
   // for all k != j: M[k] <= P_i[k]
   for (int i = 0; i < numMachines; i++) {
     if (i == sendId) { continue; }
-    if (thisClock[i] > thatClock[i]) { return 0; }
+    if (thisClock[i] > thatClock[i]) { isCausal = 0; }
   }
 
-  return 1;
+  updateVectorClock(thisClock, thatClock, srcId, numMachines);
+  return isCausal;
 }
 
 void* initInit(void* fargs) {
@@ -107,7 +107,6 @@ void* initInteraction(void* fargs) {
   // acquire the clockLock mutex so the vectorClock
   // does not update in the middle of being sent
   pthread_mutex_lock(&vClockLock);
-  // args.vectorClock[args.srcId]++;
   sendVectorClock(args.sockfd, args.numMachines, args.vectorClock);
   pthread_mutex_unlock(&vClockLock);
 
@@ -144,10 +143,11 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
 
   // simulate message staggering through sleeping for some random interval
   // based on the initial logical clock generated
-  sleep(vectorClock[args->srcId] % 10);
+  sleep(1 + (vectorClock[args->srcId] % 10));
 
   // spawn the multicast threads after all listening threads
-  // are established
+  // are established. increment the vector clock to denote a new event
+  vectorClock[args->srcId]++;
   threadRet = pthread_create(&initThread, NULL, initInit, (void*) args);
   if (threadRet != 0) {
     perror("Failed to spawn normal init thread.\n");
@@ -276,18 +276,17 @@ void* respInteraction(void* fargs) {
   }
 
   pthread_mutex_lock(&vClockLock);
+  // printVectorClock(args.srcId, args.vectorClock, args.numMachines);
 
   // update this machine's vector clock
   // MAYBE DO NOT DO THIS
-  // args.vectorClock[args.srcId]++;
-  ret = causalityReport(args.vectorClock, recvBuff, otherClock, args.numMachines);
+  ret = causalityReport(args.vectorClock, otherClock, recvBuff, args.srcId, args.numMachines);
   if (ret) {
     printf("Machine %d received a message:\t\"%s\" (delivered)\n", (args.srcId), recvBuff);
   } else {
     printf("Machine %d received a message:\t\"%s\" (buffered)\n", (args.srcId), recvBuff);
   }
 
-  updateVectorClock(args.vectorClock, otherClock, args.numMachines);
   printVectorClock(args.srcId, args.vectorClock, args.numMachines);
   pthread_mutex_unlock(&vClockLock);
 
@@ -323,10 +322,11 @@ void sendVectorClock(int connfd, int numMachines, int* vectorClock) {
 
 // sees if the received clock satisfies causality
 // takes the element-wise max for each element in the clock
-void updateVectorClock(int* thisClock, int* thatClock, int numMachines) {
+void updateVectorClock(int* thisClock, int* thatClock, int srcId, int numMachines) {
   int max(int a, int b) { return (a > b) ? a : b; }
 
   for (int i = 0; i < numMachines; i++) {
+    if (i == srcId) { thisClock[srcId]++; }
     thisClock[i] = max(thisClock[i], thatClock[i]);
   }
 

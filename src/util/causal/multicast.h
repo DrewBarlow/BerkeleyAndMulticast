@@ -17,7 +17,7 @@ typedef struct {
 
 extern pthread_mutex_t vClockLock;
 
-int causalityReport(int* thisClock, char* buff, int* thatClock, int numMachines);
+int causalityReport(int* thisClock, int* thatClock, char* buff, int srcId, int numMachines);
 void* initInit(void *fargs);
 void* initInteraction(void* fargs);
 void joinNetwork(int port, int numMachines, int* vectorClock);
@@ -26,6 +26,6 @@ int* recvVectorClock(int sockfd, int numMachines);  // allocates memory
 void* respInit(void *fargs);
 void* respInteraction(void* fargs);
 void sendVectorClock(int connfd, int numMachines, int* vectorClock);
-void updateVectorClock(int* thisClock, int* thatClock, int numMachines);
+void updateVectorClock(int* thisClock, int* thatClock, int srcId, int numMachines);
 
 #endif

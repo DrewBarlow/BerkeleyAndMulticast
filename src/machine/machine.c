@@ -53,10 +53,9 @@ void initMulticastMessages(char messages[NUM_MULTICAST_MESSAGES][BUFF_SIZE]) {
 }
 
 // initialize vector clocks (ALLOCATES MEMORY THAT NEEDS TO BE FREED)
-void initVectorClock(int** vectorClock, int myId, int logicalClock, int numMachines) {
+void initVectorClock(int** vectorClock, int myId, int numMachines) {
   *vectorClock = calloc(numMachines, sizeof(int));
   bzero(*vectorClock, numMachines);
-  (*vectorClock)[myId] = logicalClock;
 
   return;
 }
