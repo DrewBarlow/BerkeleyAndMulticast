@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     printf("Synchronization process finished. New clock value (Machine #%d): %d\n", myId, logicalClock);
   }
 
-  sleep(1);
+  sleep(2);
   
   initVectorClock(&vectorClock, myId, logicalClockOrig, numMachines);
   joinNetwork(port, numMachines, vectorClock);

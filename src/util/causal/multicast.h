@@ -8,6 +8,7 @@
 #define MIN_PORT 10000
 
 typedef struct {
+  int srcId;
   int port;
   int numMachines;
   int sockfd;
@@ -19,6 +20,7 @@ extern pthread_mutex_t vClockLock;
 void* initInit(void *fargs);
 void* initInteraction(void* fargs);
 void joinNetwork(int port, int numMachines, int* vectorClock);
+void printVectorClock(int srcId, int* vectorClock, int numMachines);
 int* recvVectorClock(int sockfd, int numMachines);  // allocates memory
 void* respInit(void *fargs);
 void* respInteraction(void* fargs);

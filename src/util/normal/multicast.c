@@ -57,7 +57,7 @@ void* initInit(void* fargs) {
 
   for (int i = 0; i < args.numMachines - 1; i++) {
     pthread_join(threads[i], NULL);
-    free(argsArr[i]);  // maybe problematic
+    free(argsArr[i]); 
   }
 
   return NULL;
@@ -67,26 +67,7 @@ void* initInit(void* fargs) {
 void* initInteraction(void* fargs) {
   args_cast_t args = *((args_cast_t*) fargs);
   char sendBuff[BUFF_SIZE];
-  char recvBuff[BUFF_SIZE];
   bzero(sendBuff, BUFF_SIZE);
-  bzero(recvBuff, BUFF_SIZE);
-  strncpy(sendBuff, "HELLO", 5);
-
-  // send HELLO
-  int ret = write(args.sockfd, sendBuff, BUFF_SIZE);
-  if (ret == -1) {
-    perror("Failed to send HELLO.\n");
-    exit(1);
-  }
-  
-  bzero(sendBuff, BUFF_SIZE);
-
-  // read initial ACK
-  ret = read(args.sockfd, recvBuff, BUFF_SIZE);
-  if (ret == -1) {
-    perror("Failed to read initial ACK.\n");
-    exit(1);
-  }
 
   // prepare multicast message
   char id[BUFF_SIZE];
@@ -98,21 +79,12 @@ void* initInteraction(void* fargs) {
   // acquire the clockLock mutex so the vectorClock
   // does not update in the middle of being sent
   pthread_mutex_lock(&vClockLock);
-
-  // THIS IS BAD!
   args.vectorClock[args.srcId]++;
   sendVectorClock(args.sockfd, args.numMachines, args.vectorClock);
   pthread_mutex_unlock(&vClockLock);
 
-  // read the vector clock ACK
-  ret = read(args.sockfd, recvBuff, BUFF_SIZE);
-  if (ret == -1) {
-    perror("Failed to read vector clock ACK.\n");
-    exit(1);
-  }
-
   // send the multicast
-  ret = write(args.sockfd, sendBuff, BUFF_SIZE);
+  int ret = write(args.sockfd, sendBuff, BUFF_SIZE);
   if (ret == -1) {
     perror("Failed to multicast message.\n");
     exit(1);
@@ -174,15 +146,15 @@ void printVectorClock(int srcId, int* vectorClock, int numMachines) {
   strncpy(clockStr, "Machine ", 8);
   itoa(srcId, num);
   strncat(clockStr, num, strlen(num));
-  strncat(clockStr, "'s clock: ", 10);
+  strcat(clockStr, "'s clock: ");
 
+  // cat each elem into the buffer, separated by commas
   for (int i = 0; i < numMachines; i++) {
     bzero(num, BUFF_SIZE);
     itoa(vectorClock[i], num);
     strncat(clockStr, num, strlen(num));
     if (i != numMachines - 1) { strcat(clockStr, ","); }
   }
-
 
   printf("%s\n", clockStr);
   return;
@@ -263,37 +235,13 @@ void* respInit(void* fargs) {
 void* respInteraction(void* fargs) {
   args_cast_t args = *((args_cast_t*) fargs);
   char recvBuff[BUFF_SIZE];
-  char sendBuff[BUFF_SIZE];
   bzero(recvBuff, BUFF_SIZE);
-  bzero(sendBuff, BUFF_SIZE);
-  strncpy(sendBuff, "ACK", 3);
-
-  // recv HELLO
-  int ret = read(args.sockfd, recvBuff, BUFF_SIZE);
-  if (ret == -1) {
-    perror("Failed to read HELLO.\n");
-    exit(1);
-  }
-
-  // send ACK
-  ret = write(args.sockfd, sendBuff, BUFF_SIZE);
-  if (ret == -1) {
-    perror("Failed to send initial ACK.\n");
-    exit(1);
-  }
 
   // receive the machine's vector clock 
   int* otherClock = recvVectorClock(args.sockfd, args.numMachines);
 
-  // ACK the vector clock
-  ret = write(args.sockfd, sendBuff, BUFF_SIZE);
-  if (ret == -1) {
-    perror("Failed to ACK the vector clock.\n");
-    exit(1);
-  }
-
   // receive the message
-  ret = read(args.sockfd, recvBuff, BUFF_SIZE);
+  int ret = read(args.sockfd, recvBuff, BUFF_SIZE);
   if (ret == -1) {
     perror("Failed to read multicast from buffer.\n");
     exit(1);
@@ -303,7 +251,6 @@ void* respInteraction(void* fargs) {
   pthread_mutex_lock(&vClockLock);
 
   // update this machine's vector clock
-  // THIS IS BAD I THINK
   args.vectorClock[args.srcId]++;
   updateVectorClock(args.vectorClock, otherClock, args.numMachines);
   printVectorClock(args.srcId, args.vectorClock, args.numMachines);
@@ -313,6 +260,7 @@ void* respInteraction(void* fargs) {
   return NULL;
 }
 
+// sends this machine's vector clock to the other one
 void sendVectorClock(int connfd, int numMachines, int* vectorClock) {
   char sendBuff[BUFF_SIZE];
   bzero(sendBuff, BUFF_SIZE);
@@ -338,6 +286,7 @@ void sendVectorClock(int connfd, int numMachines, int* vectorClock) {
   return;
 }
 
+// takes the element-wise max for each element in the clock
 void updateVectorClock(int* thisClock, int* thatClock, int numMachines) {
   int max(int a, int b) { return (a > b) ? a : b; }
 
