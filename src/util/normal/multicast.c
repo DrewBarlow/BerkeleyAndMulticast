@@ -79,7 +79,6 @@ void* initInteraction(void* fargs) {
   // acquire the clockLock mutex so the vectorClock
   // does not update in the middle of being sent
   pthread_mutex_lock(&vClockLock);
-  args.vectorClock[args.srcId]++;
   sendVectorClock(args.sockfd, args.numMachines, args.vectorClock);
   pthread_mutex_unlock(&vClockLock);
 
@@ -93,7 +92,7 @@ void* initInteraction(void* fargs) {
   return NULL;
 }
 
-void joinNetwork(int port, int numMachines, int* vectorClock) {
+void joinNetwork(int port, int numMachines, int delay, int* vectorClock) {
   // initialize the mutex for this machine's vector clock
   pthread_mutex_init(&vClockLock, NULL);
   pthread_t initThread;
@@ -116,10 +115,11 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
 
   // simulate message staggering through sleeping for some random interval
   // based on the initial logical clock generated
-  sleep(vectorClock[args->srcId] % 10);
+  sleep(1 + delay);
 
   // spawn the multicast threads after all listening threads
   // are established
+  vectorClock[args->srcId]++;
   threadRet = pthread_create(&initThread, NULL, initInit, (void*) args);
   if (threadRet != 0) {
     perror("Failed to spawn normal init thread.\n");
@@ -251,8 +251,7 @@ void* respInteraction(void* fargs) {
   pthread_mutex_lock(&vClockLock);
 
   // update this machine's vector clock
-  args.vectorClock[args.srcId]++;
-  updateVectorClock(args.vectorClock, otherClock, args.numMachines);
+  updateVectorClock(args.vectorClock, otherClock, args.srcId, args.numMachines);
   printVectorClock(args.srcId, args.vectorClock, args.numMachines);
   pthread_mutex_unlock(&vClockLock);
 
@@ -287,10 +286,11 @@ void sendVectorClock(int connfd, int numMachines, int* vectorClock) {
 }
 
 // takes the element-wise max for each element in the clock
-void updateVectorClock(int* thisClock, int* thatClock, int numMachines) {
+void updateVectorClock(int* thisClock, int* thatClock, int srcId, int numMachines) {
   int max(int a, int b) { return (a > b) ? a : b; }
 
   for (int i = 0; i < numMachines; i++) {
+    if (i == srcId) { thisClock[srcId]++; }
     thisClock[i] = max(thisClock[i], thatClock[i]);
   }
 

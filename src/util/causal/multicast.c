@@ -120,7 +120,7 @@ void* initInteraction(void* fargs) {
   return NULL;
 }
 
-void joinNetwork(int port, int numMachines, int* vectorClock) {
+void joinNetwork(int port, int numMachines, int delay, int* vectorClock) {
   // initialize the mutex for this machine's vector clock
   pthread_mutex_init(&vClockLock, NULL);
   pthread_t initThread;
@@ -143,7 +143,7 @@ void joinNetwork(int port, int numMachines, int* vectorClock) {
 
   // simulate message staggering through sleeping for some random interval
   // based on the initial logical clock generated
-  sleep(1 + (vectorClock[args->srcId] % 10));
+  sleep(1 + delay);
 
   // spawn the multicast threads after all listening threads
   // are established. increment the vector clock to denote a new event

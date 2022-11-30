@@ -37,11 +37,15 @@ int main(int argc, char** argv) {
   }
 
   sleep(1);
+
+  // the amount of time to wait before this machine
+  // sends its multicast
+  int delay = logicalClockOrig % 3;
   
   // initialize the vector clock for this machine, then run 
   // a multicast protocol
   initVectorClock(&vectorClock, myId, numMachines);
-  joinNetwork(port, numMachines, vectorClock);
+  joinNetwork(port, numMachines, delay, vectorClock);
   destroyVectorClock(vectorClock);
 
   return 0;
