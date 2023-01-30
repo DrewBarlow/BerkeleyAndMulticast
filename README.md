@@ -1,7 +1,7 @@
-# CMSC621 Project 2
-## Drew Barlow (JU08810)
+## Summary
+  * An implementation of the berkeley clock synchronization algorithm, as well as causal and unordered multicast.
 
-#### How to compile and run:
+## How to compile and run:
   - `cd src/`
   - `make compile`
   - FOR NORMAL MULTICAST: `make runn n=<num-machines-to-spin>`
